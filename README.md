@@ -18,6 +18,8 @@ sudo apt update && sudo apt upgrade -y
 
 ---
 
+<br>
+
 ## Fase 2: Preparació i configuració del Servidor
 
 En aquesta fase crearem els usuaris, grups i l'estructura de directoris necessària al servidor, i instal·lerem el dimoni NFS.
@@ -69,6 +71,8 @@ sudo apt install nfs-kernel-server -y
 
 ---
 
+<br>
+
 ## Fase 3: L'Exportació d'Administració (El Dilema del root_squash)
 
 Analitzarem el comportament de la seguretat per defecte de NFS quan l'usuari `root` del client intenta escriure en un recurs compartit.
@@ -103,7 +107,6 @@ sudo mount -t nfs IP_servidor:/srv/nfs/admin_tools /mnt/admin_tools
 sudo touch /mnt/admin_tools/test_root.txt
 ```
 
-![Error al crear fitxer com a root](images/prova1_root_squash_error.png)
 
 #### Resposta i Justificació Tècnica (Prova 1):
 * **Resultat:** L'operació és denegada (*Permission denied*).
@@ -133,13 +136,14 @@ sudo touch /mnt/admin_tools/test_root.txt
 ls -l /mnt/admin_tools/test_root.txt
 ```
 
-![Creació correcta amb no_root_squash](images/prova2_no_root_squash_success.png)
 
 #### Resposta i Justificació Tècnica (Prova 2):
 * **Resultat:** El fitxer es crea satisfactòriament i el seu propietari apareix com a `root`.
 * **Explicació:** Amb `no_root_squash`, el servidor NFS confia plenament en la identitat de l'usuari `root` del client, permetent-li mantenir els privilegis de superusuari directament sobre el sistema de fitxers exportat.
 
 ---
+
+<br>
 
 ## Fase 4: Exportació de Desenvolupament (Permisos rw vs ro i permisos de sistema)
 
@@ -177,8 +181,6 @@ sudo exportfs -ra
    ```
 * **Resultat:** Es pot crear el fitxer correctament ja que la IP està en el rang d'escriptura i l'usuari pertany al grup `devs`.
 
-![Proves d'escriptura dev01 ok](images/prova_dev01_rw_ok.png)
-
 ---
 
 #### Prova B: Accés des de la IP de només lectura (`ro`)
@@ -192,7 +194,6 @@ sudo exportfs -ra
    ```
 * **Resultat:** Denegat (*Read-only file system*). NFS bloqueja qualsevol modificació a nivell de xarxa.
 
-![Error escriptura IP ro](images/prova_ip_ro_error.png)
 
 ---
 
@@ -205,9 +206,10 @@ sudo exportfs -ra
    ```
 * **Resultat:** Denegat (*Permission denied*). Tot i que la xarxa permet escriptura (`rw`), el sistema de fitxers local bloqueja l'accés perquè `admin01` no forma part del grup propietari `devs` (permisos UGO `770`).
 
-![Error permisos locals admin01](images/prova_admin01_ugo_error.png)
 
 ---
+
+<br>
 
 ## Fase 5: Muntatge Automàtic amb `/etc/fstab`
 
@@ -232,7 +234,6 @@ sudo mount -a
 df -h | grep nfs
 ```
 
-![Comprovació mount -a i df -h](images/fstab_mount_check.png)
 
 Reiniciem la màquina client (`sudo reboot`) i comprovem que ambdues unitats romanen muntades automàticament a l'inici.
 
