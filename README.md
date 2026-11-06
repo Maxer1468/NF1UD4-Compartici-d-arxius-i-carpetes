@@ -11,7 +11,10 @@ Abans de començar la configuració dels serveis, preparem la xarxa i comprovem 
 - **Client (Zorin OS):** Configuració de xarxa adaptable per a les proves (NAT / Només-amb-amfitrió).
 
 ![](./img/1.png)
+
 ![](./img/2.png)
+
+![](./img/3.png)
 
 Actualitzem els repositoris i sistemes a totes dues màquines:
 
@@ -19,7 +22,7 @@ Actualitzem els repositoris i sistemes a totes dues màquines:
 sudo apt update && sudo apt upgrade -y
 ```
 
-![](./img/3.png)
+![](./img/4.png)
 
 ---
 
@@ -60,11 +63,11 @@ sudo chmod 770 /srv/nfs/dev_projects
 sudo chmod 770 /srv/nfs/admin_tools
 ```
 
-![](./img/4.png)
-
 ![](./img/5.png)
 
 ![](./img/6.png)
+
+![](./img/7.png)
 
 ### Instal·lació del servei NFS
 
@@ -74,7 +77,7 @@ Instal·lem el servei de servidor NFS:
 sudo apt install nfs-kernel-server -y
 ```
 
-![](./img/7.png)
+![](./img/8.png)
 
 ---
 
