@@ -10,37 +10,36 @@ Abans de començar la configuració dels serveis, preparem la xarxa i comprovem 
 - **Servidor (Ubuntu Server):** Interfície 1 en "Xarxa NAT" i Interfície 2 en "Xarxa només-amb-amfitrió".
 - **Client (Zorin OS):** Configuració de xarxa adaptable per a les proves (NAT / Només-amb-amfitrió).
 
+![](./img/1.png)
+![](./img/2.png)
+
 Actualitzem els repositoris i sistemes a totes dues màquines:
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
+![](./img/3.png)
+
 ---
 
 <br>
 
-## Fase 2: Preparació i configuració del Servidor
+## Fase 2: Preparació i configuració del Servidor i Creació de directoris i assignació de permisos
 
-En aquesta fase crearem els usuaris, grups i l'estructura de directoris necessària al servidor, i instal·lerem el dimoni NFS.
-
-### 2.1. Creació de grups i usuaris
+### Creació de grups i usuaris
 
 Creem els grups `devs` i `admins` juntament amb els usuaris corresponents (`dev01` i `admin01`).
 
 ```bash
-# Creació de grups
+
 sudo groupadd devs
 sudo groupadd admins
 
-# Creació d'usuaris associats als seus grups
+
 sudo useradd -m -g devs dev01
 sudo useradd -m -g admins admin01
 ```
-
-> **Nota d'alineació UID/GID:** Per tal que els permisos locals i de xarxa coincideixin sense autenticació centralitzada, cal assegurar-se que els UID i GID d'aquests usuaris siguin idèntics tant al servidor com al client.
-
-### 2.2. Creació de directoris i assignació de permisos
 
 Creem els directoris compartits a `/srv/nfs/` i configurem els permisos locals (UGO):
 - L'usuari propietari serà `root`.
@@ -48,26 +47,34 @@ Creem els directoris compartits a `/srv/nfs/` i configurem els permisos locals (
 - El grup `admins` tindrà accés total a `/srv/nfs/admin_tools`.
 
 ```bash
-# Creació dels directoris
+
 sudo mkdir -p /srv/nfs/dev_projects
 sudo mkdir -p /srv/nfs/admin_tools
 
-# Assignació de grups propietaris
+
 sudo chown root:devs /srv/nfs/dev_projects
 sudo chown root:admins /srv/nfs/admin_tools
 
-# Configuració de permisos (770: lect/escr/exec per propietari i grup, cap accés per a altres)
+
 sudo chmod 770 /srv/nfs/dev_projects
 sudo chmod 770 /srv/nfs/admin_tools
 ```
 
-### 2.3. Instal·lació del servei NFS
+![](./img/4.png)
+
+![](./img/5.png)
+
+![](./img/6.png)
+
+### Instal·lació del servei NFS
 
 Instal·lem el servei de servidor NFS:
 
 ```bash
 sudo apt install nfs-kernel-server -y
 ```
+
+![](./img/7.png)
 
 ---
 
@@ -77,7 +84,7 @@ sudo apt install nfs-kernel-server -y
 
 Analitzarem el comportament de la seguretat per defecte de NFS quan l'usuari `root` del client intenta escriure en un recurs compartit.
 
-### 3.1. Prova 1: Error comú (`root_squash` actiu per defecte)
+### Prova 1: Error comú (`root_squash` actiu per defecte)
 
 Editem `/etc/exports` al servidor per exportar `/srv/nfs/admin_tools` amb permisos bàsics:
 
@@ -103,7 +110,7 @@ sudo apt install nfs-common -y
 sudo mkdir -p /mnt/admin_tools
 sudo mount -t nfs IP_servidor:/srv/nfs/admin_tools /mnt/admin_tools
 
-# Intentem crear un fitxer com a root
+
 sudo touch /mnt/admin_tools/test_root.txt
 ```
 
@@ -114,7 +121,7 @@ sudo touch /mnt/admin_tools/test_root.txt
 
 ---
 
-### 3.2. Prova 2: La Solució (`no_root_squash`)
+### Prova 2: La Solució (`no_root_squash`)
 
 Modifiquem `/etc/exports` al servidor per desactivar la degradació del superusuari:
 
@@ -149,7 +156,7 @@ ls -l /mnt/admin_tools/test_root.txt
 
 En aquesta fase configurarem la seguretat segons la xarxa d'origen i els permisos d'usuari local.
 
-### 4.1. Configuració d'exportació per xarxa/IP a `/etc/exports`
+### Configuració d'exportació per xarxa/IP a `/etc/exports`
 
 Editem el fitxer `/etc/exports` al servidor per definir dos nivells d'accés per al mateix directori:
 
@@ -165,7 +172,7 @@ sudo exportfs -ra
 
 ---
 
-### 4.2. Proves d'accés des del Client
+### Proves d'accés des del Client
 
 #### Prova A: Permís d'escriptura (Dins del rang rw com a `dev01`)
 1. Muntem el recurs al client:
