@@ -36,13 +36,28 @@ Creem els grups `devs` i `admins` juntament amb els usuaris corresponents (`dev0
 
 ```bash
 
-sudo groupadd devs
-sudo groupadd admins
+sudo addgroup devs
+sudo addgroup admins
 
 
-sudo useradd -m -g devs dev01
-sudo useradd -m -g admins admin01
+sudo adduser devs
+sudo adduser admins
 ```
+![](./img/5.png)
+
+![](./img/6.png)
+```bash
+sudo usermod -aG devs dev01
+sudo usermod -aG admins admin01
+```
+
+![](./img/7.png)
+```
+sudo adduser dev01
+sudo adduser admin01
+```
+
+![](./img/8.png)
 
 Creem els directoris compartits a `/srv/nfs/` i configurem els permisos locals (UGO):
 - L'usuari propietari serà `root`.
@@ -53,21 +68,9 @@ Creem els directoris compartits a `/srv/nfs/` i configurem els permisos locals (
 
 sudo mkdir -p /srv/nfs/dev_projects
 sudo mkdir -p /srv/nfs/admin_tools
-
-
-sudo chown root:devs /srv/nfs/dev_projects
-sudo chown root:admins /srv/nfs/admin_tools
-
-
-sudo chmod 770 /srv/nfs/dev_projects
-sudo chmod 770 /srv/nfs/admin_tools
 ```
+![](./img/9.png)
 
-![](./img/5.png)
-
-![](./img/6.png)
-
-![](./img/7.png)
 
 ### Instal·lació del servei NFS
 
@@ -77,7 +80,7 @@ Instal·lem el servei de servidor NFS:
 sudo apt install nfs-kernel-server -y
 ```
 
-![](./img/8.png)
+![](./img/11.png)
 
 ---
 
@@ -89,34 +92,29 @@ Analitzarem el comportament de la seguretat per defecte de NFS quan l'usuari `ro
 
 ### Prova 1: Error comú (`root_squash` actiu per defecte)
 
-Editem `/etc/exports` al servidor per exportar `/srv/nfs/admin_tools` amb permisos bàsics:
-
-```bash
-sudo nano /etc/exports
-```
-
-Afegim la línia:
-```text
-/srv/nfs/admin_tools *(rw,sync,no_subtree_check)
-```
 
 Apliquem els canvis:
 ```bash
-sudo exportfs -a
-sudo systemctl restart nfs-kernel-server
+sudo exportfs -ra
+sudo exportfs -v
 ```
+
+![](./img/13.png)
 
 **Al Client:** Instal·lem `nfs-common`, creem el punt de muntatge i intentem crear un fitxer com a `root`:
 
 ```bash
-sudo apt install nfs-common -y
-sudo mkdir -p /mnt/admin_tools
-sudo mount -t nfs IP_servidor:/srv/nfs/admin_tools /mnt/admin_tools
-
-
+sudo apt install nfs-common
+findmnt /mnt/admin_tools
+findmnt /mnt/dev_projects
 sudo touch /mnt/admin_tools/test_root.txt
 ```
 
+![](./img/12.png)
+
+![](./img/14.png)
+
+![](./img/15.png)
 
 #### Resposta i Justificació Tècnica (Prova 1):
 * **Resultat:** L'operació és denegada (*Permission denied*).
@@ -126,26 +124,17 @@ sudo touch /mnt/admin_tools/test_root.txt
 
 ### Prova 2: La Solució (`no_root_squash`)
 
-Modifiquem `/etc/exports` al servidor per desactivar la degradació del superusuari:
-
-```text
-/srv/nfs/admin_tools *(rw,sync,no_subtree_check,no_root_squash)
-```
-
-Apliquem els canvis al servidor:
-```bash
-sudo exportfs -ra
-```
-
-**Al Client:** Desmuntem, tornem a muntar i provem de nou:
+*Al Client:** Desmuntem, tornem a muntar i provem de nou:
 
 ```bash
-sudo umount /mnt/admin_tools
 sudo mount -t nfs IP_servidor:/srv/nfs/admin_tools /mnt/admin_tools
 sudo touch /mnt/admin_tools/test_root.txt
 ls -l /mnt/admin_tools/test_root.txt
 ```
 
+![](./img/16.png)
+
+![](./img/17.png)
 
 #### Resposta i Justificació Tècnica (Prova 2):
 * **Resultat:** El fitxer es crea satisfactòriament i el seu propietari apareix com a `root`.
@@ -157,64 +146,38 @@ ls -l /mnt/admin_tools/test_root.txt
 
 ## Fase 4: Exportació de Desenvolupament (Permisos rw vs ro i permisos de sistema)
 
-En aquesta fase configurarem la seguretat segons la xarxa d'origen i els permisos d'usuari local.
-
-### Configuració d'exportació per xarxa/IP a `/etc/exports`
-
-Editem el fitxer `/etc/exports` al servidor per definir dos nivells d'accés per al mateix directori:
-
-```text
-/srv/nfs/dev_projects 192.168.56.0/24(rw,sync,no_subtree_check) 192.168.56.150(ro,sync,no_subtree_check)
-```
-*(Nota: Si s'utilitza la xarxa NAT, adapteu el rang d'IPs, per exemple `10.0.2.0/24(rw,...)` i `10.0.2.100(ro,...)`)*.
-
-Actualitzem la configuració del servidor:
-```bash
-sudo exportfs -ra
-```
-
 ---
 
 ### Proves d'accés des del Client
 
-#### Prova A: Permís d'escriptura (Dins del rang rw com a `dev01`)
+#### Prova
 1. Muntem el recurs al client:
-   ```bash
+
+```bash
    sudo mkdir -p /mnt/dev_projects
    sudo mount -t nfs IP_servidor:/srv/nfs/dev_projects /mnt/dev_projects
-   ```
-2. Canviem a l'usuari `dev01` i intentem escriure:
-   ```bash
-   su - dev01
-   cd /mnt/dev_projects
-   touch projecte_dev.txt
-   ```
-* **Resultat:** Es pot crear el fitxer correctament ja que la IP està en el rang d'escriptura i l'usuari pertany al grup `devs`.
+ ```
+
+![](./img/18.png)
+
+
+
 
 ---
 
-#### Prova B: Accés des de la IP de només lectura (`ro`)
+#### Prova
 1. Desmuntem el recurs i canviem manualment la IP del client a la IP configurada com a `ro` (`192.168.56.150` o `10.0.2.100`).
 2. Remuntem i intentem escriure com a `dev01`:
-   ```bash
-   sudo umount /mnt/dev_projects
-   sudo mount -t nfs IP_servidor:/srv/nfs/dev_projects /mnt/dev_projects
-   su - dev01
-   touch /mnt/dev_projects/test_ro.txt
-   ```
-* **Resultat:** Denegat (*Read-only file system*). NFS bloqueja qualsevol modificació a nivell de xarxa.
 
+```bash
+   sudo umount /mnt/dev_projects
+ ```
+
+![](./img/19.png)
 
 ---
 
-#### Prova C: Validació de permisos locals (Usuari fora del grup)
-1. Restablim la IP original del client amb permisos `rw`.
-2. Canviem a l'usuari `admin01` i intentem escriure al projecte de desenvolupament:
-   ```bash
-   su - admin01
-   touch /mnt/dev_projects/test_admin.txt
-   ```
-* **Resultat:** Denegat (*Permission denied*). Tot i que la xarxa permet escriptura (`rw`), el sistema de fitxers local bloqueja l'accés perquè `admin01` no forma part del grup propietari `devs` (permisos UGO `770`).
+![](./img/20.png)
 
 
 ---
@@ -223,56 +186,10 @@ sudo exportfs -ra
 
 ## Fase 5: Muntatge Automàtic amb `/etc/fstab`
 
-Per tal de garantir la persistència dels muntatges en reiniciar els equips del client, editem el fitxer `/etc/fstab` del client:
+![](./img/21.png)
 
-```bash
-sudo nano /etc/fstab
-```
-
-Afegim les línies següents al final del fitxer:
-
-```text
-# Entrades per als recursos NFS de DevOptimize Solutions
-IP_servidor:/srv/nfs/admin_tools /mnt/admin_tools nfs defaults 0 0
-IP_servidor:/srv/nfs/dev_projects /mnt/dev_projects nfs defaults 0 0
-```
-
-Comprovem la sintaxi i el muntatge sense reiniciar:
+![](./img/22.png)
 
 ```bash
 sudo mount -a
-df -h | grep nfs
 ```
-
-
-Reiniciem la màquina client (`sudo reboot`) i comprovem que ambdues unitats romanen muntades automàticament a l'inici.
-
----
-
-## Comandes de verificació utilitzades
-
-| Comanda | Funció |
-| :--- | :--- |
-| `sudo exportfs -ra` | Re-exporta tots els directoris de `/etc/exports` sense reiniciar el servei |
-| `showmount -e IP_servidor` | Llista els directoris compartits des del client |
-| `df -h -t nfs` | Mostra els punts de muntatge NFS actius i l'espai disponible |
-| `mount \| grep nfs` | Verifica les opcions de muntatge actuals |
-
----
-
-## Conclusió i Recomanacions Tècniques per a DevOptimize Solutions
-
-### Avantatges de la solució proposada
-1. **Centralització de dades:** S'evita la dispersió del codi font i la documentació en local, reduint riscos de pèrdua d'informació.
-2. **Control d'accés granular:** La combinació de les polítiques d'exportació de NFS (per IP/subxarxa) i les regles POSIX locals (UGO/grups) permet ajustar amb precisió qui pot llegir o escriure a cada directori.
-3. **Independència del Cloud:** Es manté el control total de la infraestructura sense costos recurrents d'emmagatzematge extern.
-
-### Limitacions identificades
-1. **Manca d'autenticació centralitzada:** Al no disposar d'un directori com LDAP o Active Directory, la seguretat depèn íntegrament de la posada en correspondència manual dels UID/GID entre el servidor i els clients.
-2. **Seguretat NFSv3:** El protocol utilitzat no xifra el tràfic de dades a la xarxa i confia en la IP del client, facilitant tècniques de *IP spoofing* si no es protegeix la xarxa local.
-3. **Ús de `no_root_squash`:** Desactivar el *root squashing* a `admin_tools` suposa un risc de seguretat elevat si una màquina client resulta compromesa.
-
-### Recomanacions de futur
-1. **Migració a NFSv4 + Kerberos:** S'aconsella implementar NFSv4 amb xifrat i autenticació basada en tiquets Kerberos per protegir les dades en trànsit.
-2. **Implantació d'un servei LDAP/FreeIPA:** Permetrà gestionar els usuaris i els seus UID/GID de forma centralitzada sense haver de crear-los manualment a cada equip.
-3. **Ús d'ACLs (Access Control Lists):** Quan l'estructura d'equips creixi, les ACLs permetran assignar permisos a múltiples grups i usuaris sense les restriccions del model UGO estàndard.
